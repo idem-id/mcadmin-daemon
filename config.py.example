@@ -1,0 +1,7 @@
+daemon_socket = 'daemon.sock'
+process_working_directory = '/path/to/minecraft/server'
+process_command_line = ['java', '-jar', 'KCauldron.jar']
+# maximum log messages count to be stored in buffer
+backlog = 1000
+# interval to send new logs to clients with 'push_notifications' property enabled
+log_push_interval = 0.1
