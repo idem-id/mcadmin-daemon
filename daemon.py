@@ -6,6 +6,7 @@ from utils import scan_json
 import traceback
 import time
 import config
+import time
 
 loop = asyncio.get_event_loop()
 clients = {}
@@ -15,10 +16,13 @@ log_buffer = []
 
 def response(conn, **res):
     if not conn: return
+    # print("response="+repr(res))
     conn.write(json.dumps(res).encode())
 
 def send_log(client, **kwargs):
-    if len(log_buffer) < 1: return
+    if len(log_buffer) < 1:
+        response(client['conn'], status='ok', log=[])
+        return
     if 'time' in kwargs:
         i = 0
         while i < len(log_buffer):
@@ -39,7 +43,7 @@ def push_logs():
 
 def log(message, **kwargs):
     if 'level' in kwargs:
-        message = '['+kwargs['level']+'] ' + message
+        message = '['+time.strftime('%H:%M:%S ')+kwargs['level']+'] ' + message
     global log_time, log_buffer
     new_time = time.time()
     while new_time <= log_time:
@@ -57,7 +61,7 @@ class ProcessProtocol(asyncio.SubprocessProtocol):
     def connection_made(self, transport):
         global process_conn
         process_conn = transport
-        log("process started\n", level='console')
+        log("process started\n", level='CONSOLE')
 
     def pipe_data_received(self, fd, data):
         log(data.decode())
@@ -65,10 +69,11 @@ class ProcessProtocol(asyncio.SubprocessProtocol):
     def process_exited(self):
         global process_conn
         process_conn = None
-        log("process stopped\n", level='console')
+        log("process stopped\n", level='CONSOLE')
 
 def default_properties():
     return {
+        'keep_connection': False,
         'push_notifications': False,
     }
 
@@ -100,22 +105,35 @@ class ServerProtocol(asyncio.Protocol):
             self.buffer = self.buffer[been_read:]
             if error:
                 response(conn, status="error", error=error)
+                if not self.client['properties']['keep_connection']:
+                    conn.close()
+                    return
                 continue
             if not req: break
+            # print("request ="+repr(req))
+            serve_request(self.client, req)
+            if not self.client['properties']['keep_connection']:
+                conn.close()
+                return
 
-            try:
-                method = req['method']
-                if method not in method_dispatch_table:
-                    response(conn, status="error", error="unknown method "+repr(method))
-                    continue
-                res = method_dispatch_table[method](self.client, req)
-                if res: response(conn, **res)
-            except APIException as e:
-                response(conn, status="error", error=str(e))
-            except Exception as e:
-                trace = traceback.format_exc()
-                print(trace)
-                response(conn, status="error", error=trace)
+def serve_request(client, req):
+    conn = client['conn']
+    try:
+        if 'method' not in req:
+            response(conn, status="error", error="missing parameter 'method'")
+            return
+        method = req['method']
+        if method not in method_dispatch_table:
+            response(conn, status="error", error="unknown method "+repr(method))
+            return
+        res = method_dispatch_table[method](client, req)
+        if res: response(conn, **res)
+    except APIException as e:
+        response(conn, status="error", error=str(e))
+    except Exception as e:
+        trace = traceback.format_exc()
+        print(trace)
+        response(conn, status="error", error=trace)
 
 def check_fields(req, *fields):
     for f in fields:

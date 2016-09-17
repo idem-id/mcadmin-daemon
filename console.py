@@ -17,8 +17,9 @@ class ClientProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         global conn
         conn = transport
-        request(method="get_log", count=10)
+        request(method="set_property", key="keep_connection", value=True)
         request(method="set_property", key="push_notifications", value=True)
+        request(method="get_log", count=10)
         self.buffer = b'';
         print("connected")
 

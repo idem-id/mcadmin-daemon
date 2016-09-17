@@ -17,8 +17,10 @@ requests:
 `{"method": "get_log", ("time": … | "count": …)}` - retrieve process' last `"count"` logs, or everything newer than `"time"`.
 <br>response: `{"status": "ok", "log": [{"time":…, "message":"…"}, …]}`
 
-`{"method": "set_property", "key": "…", "value": "…"}` - set client's property. currently one and only supported property is `"push_notifications"`,
-which affects server initiated log forwarding.
+`{"method": "set_property", "key": "…", "value": "…"}` - set client's property.
+<br>currently available properties:
+<br>`push_notifications` - affects server initiated log forwarding. default is `False`.
+<br>`keep_connection` - keep connection after sent response. default is `False`.
 
 ### example usage
 
